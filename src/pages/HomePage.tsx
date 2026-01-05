@@ -11,7 +11,7 @@ import { BrutalCard, BrutalButton, BrutalInput, BrutalBadge } from '@/components
 import { Toaster, toast } from 'sonner';
 import { snark } from '@/lib/snark-engine';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 export function HomePage() {
@@ -52,14 +52,14 @@ export function HomePage() {
     }
   }, [board]);
   const onboardUser = useMutation({
-    mutationFn: (nickname: string) => api<TaskBoardState>('/api/user/onboard', { 
-      method: 'POST', 
-      body: JSON.stringify({ nickname }) 
+    mutationFn: (nickname: string) => api<TaskBoardState>('/api/user/onboard', {
+      method: 'POST',
+      body: JSON.stringify({ nickname })
     }),
-    onSuccess: () => {
+    onSuccess: (_, nickname) => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
       setIsNicknameModal(false);
-      snark.speak('welcome', nicknameInput);
+      snark.speak('welcome', nickname);
     }
   });
   const addTask = useMutation({
@@ -147,12 +147,12 @@ export function HomePage() {
                   <p className="text-zinc-500 text-sm mb-2">{task.description}</p>
                   <div className="flex gap-4 text-xs font-bold text-zinc-400 uppercase">
                     <span className="flex items-center gap-1"><ShieldAlert className="h-3 w-3" /> {task.priority}</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> DUE: {new Date(task.deadline).toLocaleString()}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> DUE: {task.deadline ? new Date(task.deadline).toLocaleString() : 'NO DEADLINE'}</span>
                   </div>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
                   <BrutalButton variant="success" className="flex-1 md:flex-none" onClick={() => updateTask.mutate({ id: task.id, updates: { status: 'COMPLETED' } })}>DONE</BrutalButton>
-                  <BrutalButton className="p-2" onClick={() => { setEditingTask(task); setTaskForm(task); setIsModalOpen(true); }}><Edit3 className="h-5 w-5" /></BrutalButton>
+                  <BrutalButton className="p-2" onClick={() => { setEditingTask(task); setTaskForm(task as Partial<Task>); setIsModalOpen(true); }}><Edit3 className="h-5 w-5" /></BrutalButton>
                   <BrutalButton variant="danger" className="flex-1 md:flex-none" onClick={() => updateTask.mutate({ id: task.id, updates: { status: 'ABANDONED' } })}>QUIT</BrutalButton>
                   <BrutalButton className="p-2 border-red-600 text-red-600" onClick={() => deleteTask.mutate(task.id)}><Trash2 className="h-5 w-5" /></BrutalButton>
                 </div>
@@ -171,6 +171,7 @@ export function HomePage() {
       <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) setEditingTask(null); }}>
         <DialogContent className="bg-white text-black border-8 border-black p-8 sm:max-w-[500px]">
           <DialogHeader><DialogTitle className="text-3xl font-black uppercase tracking-tighter">{editingTask ? 'AMEND YOUR LIES' : 'ADD NEW BURDEN'}</DialogTitle></DialogHeader>
+          <DialogDescription className="sr-only">Dialog for adding or editing tasks and burdens.</DialogDescription>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-xs font-black uppercase">Burden Title</label>
@@ -201,9 +202,10 @@ export function HomePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={isNicknameModal} onOpenChange={() => {}}>
+      <Dialog open={isNicknameModal} onOpenChange={setIsNicknameModal}>
         <DialogContent className="bg-red-600 text-white border-8 border-white p-12 sm:max-w-[600px]">
           <DialogHeader><DialogTitle className="text-5xl font-black uppercase tracking-tighter leading-none text-white">CHOOSE YOUR VICTIM NAME</DialogTitle></DialogHeader>
+          <DialogDescription className="sr-only">Dialog for setting user nickname during onboarding.</DialogDescription>
           <div className="space-y-6 py-8">
             <p className="text-xl font-bold uppercase">The system needs a name to mock you properly. Choose wisely, coward.</p>
             <BrutalInput 
