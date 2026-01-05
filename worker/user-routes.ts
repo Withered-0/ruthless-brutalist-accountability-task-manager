@@ -38,7 +38,7 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
     return ok(c, { message: 'Exiled.' });
   });
   // --- SESSION MIDDLEWARE ---
-  app.use('/api/board/*', async (c, next) => {
+  app.use('/api/board*', async (c, next) => {
     const userId = getCookie(c, 'ruthless_session');
     if (!userId) return c.json({ success: false, error: 'Unauthorized. Enter purgatory first.' }, 401);
     c.set('userId', userId);
