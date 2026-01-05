@@ -3,11 +3,11 @@ import type { Task, TaskBoardState } from "@shared/types";
 export class TaskBoardEntity extends IndexedEntity<TaskBoardState> {
   static readonly entityName = "taskboard";
   static readonly indexName = "taskboards";
-  static readonly initialState: TaskBoardState = { 
-    id: "default", 
-    tasks: [], 
+  static readonly initialState: TaskBoardState = {
+    id: "default",
+    tasks: [],
     failureRate: 0,
-    lastCalculatedAt: Date.now() 
+    lastCalculatedAt: Date.now()
   };
   async addTask(task: Task): Promise<TaskBoardState> {
     return this.mutate(s => ({
@@ -15,11 +15,20 @@ export class TaskBoardEntity extends IndexedEntity<TaskBoardState> {
       tasks: [task, ...s.tasks]
     }));
   }
-  async updateTaskStatus(taskId: string, status: Task['status']): Promise<TaskBoardState> {
+  async deleteTask(taskId: string): Promise<TaskBoardState> {
     return this.mutate(s => ({
       ...s,
-      tasks: s.tasks.map(t => t.id === taskId ? { ...t, status } : t)
+      tasks: s.tasks.filter(t => t.id !== taskId)
     }));
+  }
+  async updateTask(taskId: string, updates: Partial<Task>): Promise<TaskBoardState> {
+    return this.mutate(s => ({
+      ...s,
+      tasks: s.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
+    }));
+  }
+  async updateTaskStatus(taskId: string, status: Task['status']): Promise<TaskBoardState> {
+    return this.updateTask(taskId, { status });
   }
   async syncDeadlines(): Promise<TaskBoardState> {
     const now = Date.now();
