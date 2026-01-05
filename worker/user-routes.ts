@@ -3,6 +3,32 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import type { Env } from './core-utils';
 import { UserAccountEntity, UserNightmareEntity } from "./entities";
 import { ok, bad } from './core-utils';
+
+const encoder = new TextEncoder();
+
+async function hashPassword(password: string, salt: string): Promise<string> {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const hashBuffer = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode(salt),
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    256
+  );
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 import type { Task } from "@shared/types";
 type Variables = {
   userId: string;
@@ -15,10 +41,11 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
     const existing = await UserAccountEntity.findByEmail(c.env, email);
     if (existing) return bad(c, 'Email already in purgatory');
     const userId = btoa(email.toLowerCase());
+    const passwordHash = await hashPassword(password, userId);
     const user = await UserAccountEntity.create(c.env, {
       id: userId,
       email,
-      passwordHash: password,
+      passwordHash,
       nickname: nickname || "Pathetic User"
     });
     setCookie(c, 'ruthless_session', userId, { httpOnly: true, secure: true, sameSite: 'Strict', maxAge: 86400 });
@@ -27,9 +54,9 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
   app.post('/api/auth/login', async (c) => {
     const { email, password } = await c.req.json();
     const user = await UserAccountEntity.findByEmail(c.env, email);
-    if (!user || user.passwordHash !== password) {
-      return bad(c, 'Invalid credentials. Typical.');
-    }
+    if (!user) return bad(c, 'Invalid credentials. Typical.');
+    const expectedHash = await hashPassword(password, user.id);
+    if (expectedHash !== user.passwordHash) return bad(c, 'Invalid credentials. Typical.');
     setCookie(c, 'ruthless_session', user.id, { httpOnly: true, secure: true, sameSite: 'Strict', maxAge: 86400 });
     return ok(c, { user: { id: user.id, email: user.email, nickname: user.nickname } });
   });
