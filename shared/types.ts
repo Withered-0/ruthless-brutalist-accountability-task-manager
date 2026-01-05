@@ -3,22 +3,24 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
-
-// Minimal real-world chat example types (shared by frontend and worker)
+export type TaskStatus = 'PENDING' | 'COMPLETED' | 'OVERDUE' | 'ABANDONED';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  deadline: string; // ISO String
+  priority: TaskPriority;
+  status: TaskStatus;
+  createdAt: number;
+}
+export interface TaskBoardState {
+  id: string;
+  tasks: Task[];
+  failureRate: number;
+  lastCalculatedAt: number;
+}
 export interface User {
   id: string;
   name: string;
-}
-
-export interface Chat {
-  id: string;
-  title: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  chatId: string;
-  userId: string;
-  text: string;
-  ts: number; // epoch millis
 }
