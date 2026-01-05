@@ -29,19 +29,25 @@ const SNARK_LIBRARY: Record<SnarkCategory, string[]> = {
     "I can smell the procrastination from here."
   ]
 };
+const SOUND_EFFECTS = {
+  chicken: 'https://assets.mixkit.co/active_storage/sfx/204/204-preview.mp3',
+  death_knell: 'https://assets.mixkit.co/active_storage/sfx/1118/1118-preview.mp3'
+};
 class SnarkEngine {
   private static instance: SnarkEngine;
   private voice: SpeechSynthesisVoice | null = null;
   private isUnlocked: boolean = false;
+  private isMuted: boolean = false;
   private constructor() {
     if (typeof window !== 'undefined') {
-      window.speechSynthesis.onvoiceschanged = () => {
+      const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
-        // Prefer a dry, robotic or clear English voice
-        this.voice = voices.find(v => v.name.includes('Google UK English Male')) || 
-                     voices.find(v => v.lang.startsWith('en')) || 
+        this.voice = voices.find(v => v.name.includes('Google UK English Male')) ||
+                     voices.find(v => v.lang.startsWith('en')) ||
                      voices[0];
       };
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices();
     }
   }
   static getInstance() {
@@ -53,11 +59,23 @@ class SnarkEngine {
   unlock() {
     this.isUnlocked = true;
   }
+  toggleMute() {
+    this.isMuted = !this.isMuted;
+    return this.isMuted;
+  }
+  getMuteStatus() {
+    return this.isMuted;
+  }
+  playSound(type: keyof typeof SOUND_EFFECTS) {
+    if (!this.isUnlocked || this.isMuted || typeof window === 'undefined') return;
+    const audio = new Audio(SOUND_EFFECTS[type]);
+    audio.volume = 0.5;
+    audio.play().catch(() => { /* Ignore autoplay blocks */ });
+  }
   speak(category: SnarkCategory) {
-    if (!this.isUnlocked || typeof window === 'undefined') return;
+    if (!this.isUnlocked || this.isMuted || typeof window === 'undefined') return;
     const phrases = SNARK_LIBRARY[category];
     const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-    // Stop any current speech
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(phrase);
     if (this.voice) utterance.voice = this.voice;
