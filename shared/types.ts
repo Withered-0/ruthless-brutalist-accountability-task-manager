@@ -3,7 +3,7 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
-export type TaskStatus = 'PENDING' | 'COMPLETED' | 'OVERDUE' | 'ABANDONED';
+export type TaskStatus = 'PENDING' | 'COMPLETED' | 'OVERDUE' | 'ABANDONED' | 'EXPIRED';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export interface Task {
   id: string;
@@ -22,11 +22,14 @@ export interface User {
 export interface TaskBoardState {
   id: string;
   tasks: Task[];
+  shameHistory: Task[]; // Permanent record of failures
   stolenValor: Task[];
   failureRate: number;
+  glitchLevel: number; // 0-100 driving UI intensity
   lastCalculatedAt: number;
   nickname?: string;
   lockoutUntil?: number;
+  isCheating?: boolean; // Flag if user tries to manipulate deadlines
 }
 export interface AuthResponse {
   user: User;

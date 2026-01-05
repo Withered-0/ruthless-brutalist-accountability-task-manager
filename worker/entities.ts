@@ -5,8 +5,6 @@ export class UserAccountEntity extends IndexedEntity<User & { passwordHash: stri
   static readonly indexName = "user_accounts";
   static readonly initialState = { id: "", email: "", passwordHash: "", nickname: "" };
   static async findByEmail(env: any, email: string): Promise<(User & { passwordHash: string }) | null> {
-    // In a real app, you'd use a dedicated email-to-id index. 
-    // For this template, we'll iterate or use a naming convention for the ID.
     const id = btoa(email.toLowerCase());
     const user = new UserAccountEntity(env, id);
     if (await user.exists()) {
@@ -20,11 +18,14 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
   static readonly initialState: TaskBoardState = {
     id: "default",
     tasks: [],
+    shameHistory: [],
     stolenValor: [],
     failureRate: 0,
+    glitchLevel: 0,
     lastCalculatedAt: Date.now(),
     nickname: "",
-    lockoutUntil: 0
+    lockoutUntil: 0,
+    isCheating: false
   };
   async addTask(task: Task): Promise<TaskBoardState> {
     return this.mutate(s => ({
@@ -32,14 +33,33 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
       tasks: [task, ...s.tasks]
     }));
   }
-  async updateTaskStatus(taskId: string, status: Task['status']): Promise<TaskBoardState> {
+  async updateTask(taskId: string, updates: Partial<Task>): Promise<TaskBoardState> {
     return this.mutate(s => {
+      let isCheating = s.isCheating;
       let lockoutUntil = s.lockoutUntil || 0;
-      if (status === 'ABANDONED') {
+      const taskIndex = s.tasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return s;
+      const task = s.tasks[taskIndex];
+      // Boss Logic: Detecting Deadline manipulation
+      if (updates.deadline && new Date(updates.deadline) > new Date(task.deadline)) {
+        isCheating = true; // User is extending a deadline
+      }
+      if (updates.status === 'ABANDONED') {
         lockoutUntil = Date.now() + 30000; // 30s lockout
       }
-      const tasks = s.tasks.map(t => t.id === taskId ? { ...t, status } : t);
-      return { ...s, tasks, lockoutUntil };
+      const tasks = s.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
+      return { ...s, tasks, lockoutUntil, isCheating };
+    });
+  }
+  async deleteTask(taskId: string): Promise<TaskBoardState> {
+    return this.mutate(s => {
+      const task = s.tasks.find(t => t.id === taskId);
+      if (!task) return s;
+      // The Unforgettable Sin: Overdue/Abandoned tasks are never deleted, just moved to history
+      const shouldLogToShame = task.status === 'OVERDUE' || task.status === 'ABANDONED';
+      const shameHistory = shouldLogToShame ? [...(s.shameHistory || []), task] : (s.shameHistory || []);
+      const tasks = s.tasks.filter(t => t.id !== taskId);
+      return { ...s, tasks, shameHistory };
     });
   }
   async setNickname(name: string): Promise<TaskBoardState> {
@@ -55,15 +75,14 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
         }
         return t;
       });
-      // 2. Calculate Failure Rate (Helper-like logic inside DO)
+      // 2. Calculate Failure Rate
       const failures = updatedTasks.filter(t => t.status === 'OVERDUE' || t.status === 'ABANDONED').length;
-      const total = updatedTasks.length;
-      const rawRate = total === 0 ? 0 : (failures / total) * 100;
-      // Boss Logic: Stolen Valor
+      const historyFailures = (s.shameHistory || []).length;
+      const total = updatedTasks.length + historyFailures;
+      const rawRate = total === 0 ? 0 : ((failures + historyFailures) / total) * 100;
+      // 3. Stolen Valor Logic
       let finalTasks = [...updatedTasks];
       let stolen = [...(s.stolenValor || [])];
-      // If failure rate is insanely high (>150% conceptually or just high)
-      // Here we use a threshold of 150 calculated as (failures/total)*100 + some penalty
       if (rawRate > 75 && finalTasks.some(t => t.status === 'COMPLETED')) {
         const completedIndex = finalTasks.findIndex(t => t.status === 'COMPLETED');
         if (completedIndex !== -1) {
@@ -71,25 +90,16 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
           stolen.push(stolenTask);
         }
       }
-      return { 
-        ...s, 
-        tasks: finalTasks, 
-        stolenValor: stolen, 
-        failureRate: rawRate, 
-        lastCalculatedAt: now 
+      // 4. Glitch Level Calculation
+      const glitchLevel = Math.min(rawRate + (s.isCheating ? 20 : 0), 100);
+      return {
+        ...s,
+        tasks: finalTasks,
+        stolenValor: stolen,
+        failureRate: rawRate,
+        glitchLevel,
+        lastCalculatedAt: now
       };
     });
-  }
-  async deleteTask(taskId: string): Promise<TaskBoardState> {
-    return this.mutate(s => ({
-      ...s,
-      tasks: s.tasks.filter(t => t.id !== taskId)
-    }));
-  }
-  async updateTask(taskId: string, updates: Partial<Task>): Promise<TaskBoardState> {
-    return this.mutate(s => ({
-      ...s,
-      tasks: s.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
-    }));
   }
 }
