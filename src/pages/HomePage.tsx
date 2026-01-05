@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { 
-  AlertCircle, Plus, Check, Skull, Trash2, History, Volume2, VolumeX, 
+import {
+  AlertCircle, Plus, Check, Skull, Trash2, History, Volume2, VolumeX,
   Radio, TrendingDown, Clock, CheckCircle, Edit3, X, ArrowDown
 } from 'lucide-react';
 import { api } from '@/lib/api-client';
@@ -11,8 +11,8 @@ import { cn, calculateFailureRate, getExaggeratedFailureRate, getLifeWastedEstim
 import { BrutalCard, BrutalButton, BrutalInput, BrutalBadge } from '@/components/brutalist-ui';
 import { Toaster, toast } from 'sonner';
 import { snark } from '@/lib/snark-engine';
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter 
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function HomePage() {
@@ -39,6 +39,7 @@ export function HomePage() {
       if (previousOverdueCount.current !== null && currentOverdue > previousOverdueCount.current) {
         snark.playSound('death_knell');
         toast.error("THE BELL TOLLS. ANOTHER DEADLINE MISSED.");
+        snark.speak('idle_shame');
       }
       previousOverdueCount.current = currentOverdue;
     }
@@ -73,16 +74,20 @@ export function HomePage() {
   });
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string, status: Task['status'] }) =>
-      api<TaskBoardState>(`/api/patch/board/task/${id}`, { // Note: using PATCH endpoint from previous logic
+      api<TaskBoardState>(`/api/board/task/${id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['board'] });
-      if (variables.status === 'COMPLETED') snark.speak('task_completed');
+      if (variables.status === 'COMPLETED') {
+        snark.speak('task_completed');
+        toast.success("TASK DONE. DON'T EXPECT A REWARD.");
+      }
       if (variables.status === 'ABANDONED') {
         snark.playSound('chicken');
         snark.speak('task_abandoned');
+        toast.error("QUITTER. RECORDED IN THE HALL OF SHAME.");
       }
     },
   });
@@ -120,7 +125,7 @@ export function HomePage() {
   const isGlitching = failureRate > 50;
   const glitchIntensity = Math.max(0.1, 0.5 - (failureRate / 200));
   return (
-    <div className={cn("min-h-screen bg-black text-white font-mono selection:bg-red-600 selection:text-white", isGlitching && "animate-glitch")} style={isGlitching ? { animationDuration: `${glitchIntensity}s` } : {}}>
+    <div className={cn("min-h-screen bg-black text-white font-mono selection:bg-red-600 selection:text-white pb-24", isGlitching && "animate-glitch")} style={isGlitching ? { animationDuration: `${glitchIntensity}s` } : {}}>
       {!isUnlocked && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 text-white">
           <h2 className="text-4xl md:text-6xl font-black mb-8 text-center uppercase tracking-tighter text-red-600">Accountability is Mandatory</h2>
@@ -248,8 +253,8 @@ export function HomePage() {
     </div>
   );
 }
-function TaskList({ tasks, onStatus, onEdit, onDelete }: { 
-  tasks: Task[], 
+function TaskList({ tasks, onStatus, onEdit, onDelete }: {
+  tasks: Task[],
   onStatus: (args: {id: string, status: Task['status']}) => void,
   onEdit: (task: Task) => void,
   onDelete: (id: string) => void
@@ -287,8 +292,8 @@ function TaskList({ tasks, onStatus, onEdit, onDelete }: {
                 <div className="flex gap-2">
                   {!isCompleted && !isAbandoned && (
                     <>
-                      <button onClick={() => onEdit(task)} className="p-2 hover:bg-white hover:text-black transition-colors"><Edit3 className="h-5 w-5" /></button>
-                      <button onClick={() => onDelete(task.id)} className="p-2 hover:bg-red-600 hover:text-white transition-colors"><Trash2 className="h-5 w-5" /></button>
+                      <button onClick={() => onEdit(task)} className="p-2 hover:bg-white hover:text-black transition-colors" title="Edit Burden"><Edit3 className="h-5 w-5" /></button>
+                      <button onClick={() => onDelete(task.id)} className="p-2 hover:bg-red-600 hover:text-white transition-colors" title="Delete Burden"><Trash2 className="h-5 w-5" /></button>
                     </>
                   )}
                 </div>
