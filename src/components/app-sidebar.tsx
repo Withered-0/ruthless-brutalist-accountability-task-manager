@@ -1,5 +1,8 @@
 import React from "react";
 import { Skull, ShieldAlert, LifeBuoy, Settings, LogOut, LayoutDashboard } from "lucide-react";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -11,9 +14,17 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Link, useLocation } from "react-router-dom";
 export function AppSidebar(): JSX.Element {
   const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const logoutMutation = useMutation({
+    mutationFn: () => api('/api/auth/logout', { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.clear();
+      navigate('/login');
+    }
+  });
   return (
     <Sidebar className="border-r-4 border-black bg-zinc-950">
       <SidebarHeader className="border-b-4 border-black p-4">
@@ -67,7 +78,11 @@ export function AppSidebar(): JSX.Element {
         </div>
         <SidebarMenu>
           <SidebarMenuItem>
-             <SidebarMenuButton className="bg-red-900/20 text-red-500 hover:bg-red-600 hover:text-white border border-red-900">
+             <SidebarMenuButton 
+               onClick={() => logoutMutation.mutate()}
+               disabled={logoutMutation.isPending}
+               className="bg-red-900/20 text-red-500 hover:bg-red-600 hover:text-white border border-red-900"
+             >
                <LogOut className="h-4 w-4" /> <span className="uppercase font-black">Surrender</span>
              </SidebarMenuButton>
           </SidebarMenuItem>
