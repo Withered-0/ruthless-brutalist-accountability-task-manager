@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Plus, Check, Skull, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Plus, Check, Skull, Trash2, History, Volume2 } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import type { Task, TaskBoardState } from '@shared/types';
 import { cn, calculateFailureRate } from '@/lib/utils';
 import { BrutalCard, BrutalButton, BrutalInput, BrutalBadge } from '@/components/brutalist-ui';
 import { Toaster, toast } from 'sonner';
+import { snark } from '@/lib/snark-engine';
+
 export function HomePage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [newTitle, setNewTitle] = useState('');
   const [newDeadline, setNewDeadline] = useState('');
+  const [isUnlocked, setIsUnlocked] = useState(false);
+
   const { data: board, isLoading } = useQuery<TaskBoardState>({
     queryKey: ['board'],
     queryFn: () => api<TaskBoardState>('/api/board'),
@@ -24,6 +30,7 @@ export function HomePage() {
       queryClient.invalidateQueries({ queryKey: ['board'] });
       setNewTitle('');
       setNewDeadline('');
+      snark.speak('task_added');
       toast.success("BURDEN ADDED. DON'T FAIL THIS ONE.");
     },
     onError: () => toast.error("YOU FAILED TO EVEN ADD A TASK. PATHETIC.")
@@ -34,16 +41,44 @@ export function HomePage() {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board'] }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['board'] });
+      if (variables.status === 'COMPLETED') {
+        snark.speak('task_completed');
+      } else if (variables.status === 'ABANDONED') {
+        snark.speak('task_abandoned');
+      }
+    },
   });
+
+  const handleUnlock = () => {
+    snark.unlock();
+    setIsUnlocked(true);
+    snark.speak('welcome');
+  };
+
   const failureRate = board ? calculateFailureRate(board.tasks) : 0;
   const isGlitching = failureRate > 50;
+
   if (isLoading) return <div className="p-20 text-4xl animate-pulse">LOADING YOUR FAILURES...</div>;
+
   return (
-    <div className={cn("min-h-screen p-4 md:p-8 space-y-12 max-w-5xl mx-auto", isGlitching && "animate-glitch")}>
+    <div className={cn("min-h-screen p-4 md:p-8 space-y-12 max-w-7xl mx-auto", isGlitching && "animate-glitch")}>
+      {!isUnlocked && (
+        <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-6">
+          <BrutalButton 
+            className="text-4xl p-12 bg-red-600 text-white border-white animate-bounce"
+            onClick={handleUnlock}
+          >
+            <Volume2 className="inline mr-4 h-12 w-12" />
+            INITIALIZE SHAME
+          </BrutalButton>
+        </div>
+      )}
+
       <header className="border-8 border-black p-6 bg-white text-black shadow-brutal-lg flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
-          <h1 className="text-6xl font-black uppercase tracking-tighter leading-none">Ruthless</h1>
+          <h1 className="text-8xl font-black uppercase tracking-tighter leading-none">Ruthless</h1>
           <p className="text-xl font-bold italic">BRUTALIST ACCOUNTABILITY</p>
         </div>
         <div className="text-right flex flex-col items-center md:items-end">
@@ -57,6 +92,12 @@ export function HomePage() {
         </div>
       </header>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-3 flex justify-end">
+          <BrutalButton onClick={() => navigate('/shame')} className="flex items-center gap-2">
+            <History className="h-5 w-5" /> VIEW HALL OF SHAME
+          </BrutalButton>
+        </div>
+
         <section className="md:col-span-1 space-y-4">
           <h2 className="text-2xl font-black uppercase border-b-4 border-black pb-2">Add New Burden</h2>
           <BrutalCard className="space-y-4">
