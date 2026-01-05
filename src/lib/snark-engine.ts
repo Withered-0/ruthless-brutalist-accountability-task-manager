@@ -1,32 +1,29 @@
 type SnarkCategory = 'task_added' | 'task_completed' | 'task_abandoned' | 'idle_shame' | 'welcome';
 const SNARK_LIBRARY: Record<SnarkCategory, string[]> = {
   welcome: [
-    "Oh, you're back. I assume you've finished everything? Of course not.",
-    "Welcome to your dashboard of disappointment.",
-    "Try not to fail too much today. No promises, though."
+    "Oh, you're back, ${nickname}. I assume you've finished everything? Of course not.",
+    "Welcome to your dashboard of disappointment, ${nickname}.",
+    "Try not to fail too much today, ${nickname}. No promises, though."
   ],
   task_added: [
-    "Another burden added? You can't even handle what you have.",
-    "A new promise you'll inevitably break. Typical.",
-    "Sure, add that to the pile of things you'll never finish.",
-    "The audacity to add more tasks while failing so many others is impressive."
+    "Another burden added, ${nickname}? You can't even handle what you have.",
+    "A new promise you'll inevitably break, ${nickname}. Typical.",
+    "Sure, ${nickname}, add that to the pile of things you'll never finish.",
   ],
   task_completed: [
-    "You did the bare minimum. Congratulations. Want a medal?",
-    "Finally. Only three days late. Stunning work.",
-    "About time. A snail could have done it faster.",
-    "Wow, you actually finished something. Is the world ending?"
+    "You did the bare minimum, ${nickname}. Congratulations.",
+    "Finally, ${nickname}. Only three days late. Stunning work.",
+    "Wow, you actually finished something, ${nickname}. Is the world ending?"
   ],
   task_abandoned: [
-    "Chicken. You gave up. Pathetic.",
-    "Another failure for the record. Your parents would be proud.",
-    "Weak. Absolutely weak.",
-    "Giving up is the only thing you're actually good at."
+    "Chicken, ${nickname}. You gave up. Pathetic.",
+    "Another failure for the record, ${nickname}. Weak.",
+    "Giving up is the only thing you're actually good at, ${nickname}."
   ],
   idle_shame: [
-    "The clock is ticking, and you're just staring at me. Pathetic.",
-    "Still here? Those deadlines aren't moving themselves.",
-    "I can smell the procrastination from here."
+    "The clock is ticking, ${nickname}, and you're just staring at me. Pathetic.",
+    "Still here, ${nickname}? Those deadlines aren't moving themselves.",
+    "I can smell the procrastination from here, ${nickname}."
   ]
 };
 const SOUND_EFFECTS = {
@@ -51,31 +48,27 @@ class SnarkEngine {
     }
   }
   static getInstance() {
-    if (!SnarkEngine.instance) {
-      SnarkEngine.instance = new SnarkEngine();
-    }
+    if (!SnarkEngine.instance) SnarkEngine.instance = new SnarkEngine();
     return SnarkEngine.instance;
   }
-  unlock() {
-    this.isUnlocked = true;
-  }
-  toggleMute() {
-    this.isMuted = !this.isMuted;
-    return this.isMuted;
-  }
-  getMuteStatus() {
-    return this.isMuted;
-  }
+  unlock() { this.isUnlocked = true; }
+  toggleMute() { this.isMuted = !this.isMuted; return this.isMuted; }
+  getMuteStatus() { return this.isMuted; }
   playSound(type: keyof typeof SOUND_EFFECTS) {
     if (!this.isUnlocked || this.isMuted || typeof window === 'undefined') return;
     const audio = new Audio(SOUND_EFFECTS[type]);
     audio.volume = 0.5;
-    audio.play().catch(() => { /* Ignore autoplay blocks */ });
+    audio.play().catch(() => {});
   }
-  speak(category: SnarkCategory) {
+  speak(category: SnarkCategory, nickname?: string) {
     if (!this.isUnlocked || this.isMuted || typeof window === 'undefined') return;
     const phrases = SNARK_LIBRARY[category];
-    const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+    let phrase = phrases[Math.floor(Math.random() * phrases.length)];
+    if (nickname) {
+      phrase = phrase.replace(/\$\{nickname\}/g, nickname);
+    } else {
+      phrase = phrase.replace(/\$\{nickname\}/g, "You");
+    }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(phrase);
     if (this.voice) utterance.voice = this.voice;

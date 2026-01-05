@@ -14,13 +14,21 @@ export interface Task {
   status: TaskStatus;
   createdAt: number;
 }
+export interface User {
+  id: string;
+  email: string;
+  nickname?: string;
+}
 export interface TaskBoardState {
   id: string;
   tasks: Task[];
+  stolenValor: Task[];
   failureRate: number;
   lastCalculatedAt: number;
+  nickname?: string;
+  lockoutUntil?: number;
 }
-export interface User {
-  id: string;
-  name: string;
+export interface AuthResponse {
+  user: User;
+  token?: string;
 }
