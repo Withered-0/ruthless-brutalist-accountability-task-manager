@@ -4,7 +4,10 @@ import type { Env } from './core-utils';
 import { UserAccountEntity, UserNightmareEntity } from "./entities";
 import { ok, bad } from './core-utils';
 import type { Task } from "@shared/types";
-export function userRoutes(app: Hono<{ Bindings: Env }>) {
+type Variables = {
+  userId: string;
+};
+export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
   // --- AUTH ROUTES ---
   app.post('/api/auth/register', async (c) => {
     const { email, password, nickname } = await c.req.json();
@@ -12,10 +15,10 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const existing = await UserAccountEntity.findByEmail(c.env, email);
     if (existing) return bad(c, 'Email already in purgatory');
     const userId = btoa(email.toLowerCase());
-    const user = await UserAccountEntity.create(c.env, { 
-      id: userId, 
-      email, 
-      passwordHash: password, // In production, hash this properly
+    const user = await UserAccountEntity.create(c.env, {
+      id: userId,
+      email,
+      passwordHash: password,
       nickname: nickname || "Pathetic User"
     });
     setCookie(c, 'ruthless_session', userId, { httpOnly: true, secure: true, sameSite: 'Strict', maxAge: 86400 });
@@ -38,24 +41,24 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.use('/api/board/*', async (c, next) => {
     const userId = getCookie(c, 'ruthless_session');
     if (!userId) return c.json({ success: false, error: 'Unauthorized. Enter purgatory first.' }, 401);
-    c.set('userId' as any, userId);
+    c.set('userId', userId);
     await next();
   });
   app.use('/api/user/*', async (c, next) => {
     const userId = getCookie(c, 'ruthless_session');
     if (!userId) return c.json({ success: false, error: 'Unauthorized' }, 401);
-    c.set('userId' as any, userId);
+    c.set('userId', userId);
     await next();
   });
-  // --- BOARD ROUTES (User Isolated) ---
+  // --- BOARD ROUTES ---
   app.get('/api/board', async (c) => {
-    const userId = c.get('userId' as any) as string;
+    const userId = c.get('userId');
     const board = new UserNightmareEntity(c.env, userId);
     const state = await board.syncDeadlines();
     return ok(c, state);
   });
   app.post('/api/board/task', async (c) => {
-    const userId = c.get('userId' as any) as string;
+    const userId = c.get('userId');
     const { title, deadline, priority, description } = await c.req.json() as Partial<Task>;
     if (!title || !deadline) return bad(c, 'Title and deadline required');
     const board = new UserNightmareEntity(c.env, userId);
@@ -72,19 +75,26 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     return ok(c, updated);
   });
   app.patch('/api/board/task/:id', async (c) => {
-    const userId = c.get('userId' as any) as string;
+    const userId = c.get('userId');
     const id = c.req.param('id');
-    const { status } = await c.req.json() as { status: Task['status'] };
+    const updates = await c.req.json() as Partial<Task>;
     const board = new UserNightmareEntity(c.env, userId);
     const state = await board.getState();
     if (state.lockoutUntil && state.lockoutUntil > Date.now()) {
       return bad(c, 'You are currently locked out for your cowardice.');
     }
-    const updated = await board.updateTaskStatus(id, status);
+    const updated = await board.updateTask(id, updates);
+    return ok(c, updated);
+  });
+  app.delete('/api/board/task/:id', async (c) => {
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+    const board = new UserNightmareEntity(c.env, userId);
+    const updated = await board.deleteTask(id);
     return ok(c, updated);
   });
   app.post('/api/user/onboard', async (c) => {
-    const userId = c.get('userId' as any) as string;
+    const userId = c.get('userId');
     const { nickname } = await c.req.json();
     const board = new UserNightmareEntity(c.env, userId);
     const updated = await board.setNickname(nickname);
