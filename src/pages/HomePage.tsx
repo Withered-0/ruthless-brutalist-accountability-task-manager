@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -26,16 +26,13 @@ export function HomePage() {
   const [taskForm, setTaskForm] = useState<Partial<Task>>({
     title: '', description: '', priority: 'MEDIUM', deadline: ''
   });
+  const prevOverdueCountRef = useRef<number>(0);
   const { data: board, error } = useQuery<TaskBoardState>({
     queryKey: ['board'],
     queryFn: () => api<TaskBoardState>('/api/board'),
     retry: false,
     refetchInterval: 5000,
   });
-  const prevOverdueCount = useMemo(() => {
-    if (!board) return 0;
-    return board.tasks.filter(t => t.status === 'OVERDUE').length;
-  }, [board]);
   useEffect(() => {
     if (error) navigate('/login');
   }, [error, navigate]);
@@ -47,12 +44,24 @@ export function HomePage() {
   useEffect(() => {
     if (board) {
       const currentOverdue = board.tasks.filter(t => t.status === 'OVERDUE').length;
-      if (currentOverdue > prevOverdueCount) {
+      if (currentOverdue > prevOverdueCountRef.current) {
         snark.playSound('death_knell');
         toast.error("THE KNELL TOLLS. ANOTHER FAILURE LOGGED.");
       }
+      prevOverdueCountRef.current = currentOverdue;
     }
-  }, [board, prevOverdueCount]);
+  }, [board]);
+  const onboardUser = useMutation({
+    mutationFn: (nickname: string) => api<TaskBoardState>('/api/user/onboard', { 
+      method: 'POST', 
+      body: JSON.stringify({ nickname }) 
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board'] });
+      setIsNicknameModal(false);
+      snark.speak('welcome', nicknameInput);
+    }
+  });
   const addTask = useMutation({
     mutationFn: (task: Partial<Task>) => api<TaskBoardState>('/api/board/task', { method: 'POST', body: JSON.stringify(task) }),
     onSuccess: () => {
@@ -132,7 +141,7 @@ export function HomePage() {
               <BrutalCard key={task.id} className={cn("bg-zinc-950 border-white flex flex-col md:flex-row justify-between items-center p-6", task.status === 'OVERDUE' && "border-red-600 border-4")}>
                 <div className="mb-4 md:mb-0">
                   <h3 className="text-2xl font-black uppercase flex items-center gap-3">
-                    {task.title} 
+                    {task.title}
                     {task.status === 'OVERDUE' && <BrutalBadge variant="crit">OVERDUE</BrutalBadge>}
                   </h3>
                   <p className="text-zinc-500 text-sm mb-2">{task.description}</p>
@@ -188,6 +197,29 @@ export function HomePage() {
           <DialogFooter>
             <BrutalButton className="w-full text-xl py-6" variant={editingTask ? 'blue' : 'primary'} onClick={() => editingTask ? updateTask.mutate({ id: editingTask.id, updates: taskForm }) : addTask.mutate(taskForm)}>
               {editingTask ? 'UPDATE THE LIE' : 'ACCEPT THE BURDEN'}
+            </BrutalButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isNicknameModal} onOpenChange={() => {}}>
+        <DialogContent className="bg-red-600 text-white border-8 border-white p-12 sm:max-w-[600px]">
+          <DialogHeader><DialogTitle className="text-5xl font-black uppercase tracking-tighter leading-none text-white">CHOOSE YOUR VICTIM NAME</DialogTitle></DialogHeader>
+          <div className="space-y-6 py-8">
+            <p className="text-xl font-bold uppercase">The system needs a name to mock you properly. Choose wisely, coward.</p>
+            <BrutalInput 
+              value={nicknameInput} 
+              onChange={e => setNicknameInput(e.target.value)} 
+              placeholder="E.G. CHRONIC_PROCRASTINATOR" 
+              className="text-2xl py-6 bg-white text-black border-4 border-black"
+            />
+          </div>
+          <DialogFooter>
+            <BrutalButton 
+              className="w-full text-2xl py-8 bg-black text-white border-white hover:bg-white hover:text-black" 
+              onClick={() => nicknameInput.trim() && onboardUser.mutate(nicknameInput.trim())}
+              disabled={onboardUser.isPending}
+            >
+              LOG YOUR IDENTITY
             </BrutalButton>
           </DialogFooter>
         </DialogContent>

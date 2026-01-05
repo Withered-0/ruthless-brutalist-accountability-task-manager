@@ -96,8 +96,15 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
   app.post('/api/user/onboard', async (c) => {
     const userId = c.get('userId');
     const { nickname } = await c.req.json();
+    if (!nickname) return bad(c, 'Nickname required');
+    // Update Nightmare State
     const board = new UserNightmareEntity(c.env, userId);
-    const updated = await board.setNickname(nickname);
-    return ok(c, updated);
+    const updatedBoard = await board.setNickname(nickname);
+    // Update Account Consistency
+    const account = new UserAccountEntity(c.env, userId);
+    if (await account.exists()) {
+      await account.patch({ nickname });
+    }
+    return ok(c, updatedBoard);
   });
 }
