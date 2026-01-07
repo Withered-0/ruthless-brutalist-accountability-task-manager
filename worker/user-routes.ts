@@ -44,7 +44,9 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
       passwordHash,
       nickname: nickname || "Pathetic User"
     });
-    setCookie(c, 'ruthless_session', userId, { httpOnly: true, secure: true, sameSite: 'Strict', maxAge: 86400 });
+    const urlObj = new URL(c.req.url);
+    const isSecure = urlObj.protocol === 'https:';
+    setCookie(c, 'ruthless_session', userId, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 2592000 });
     return ok(c, { user: { id: user.id, email: user.email, nickname: user.nickname } });
   });
   app.post('/api/auth/login', async (c) => {
@@ -53,7 +55,9 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
     if (!user) return bad(c, 'Invalid credentials. Typical.');
     const expectedHash = await hashPassword(password, user.id);
     if (expectedHash !== user.passwordHash) return bad(c, 'Invalid credentials. Typical.');
-    setCookie(c, 'ruthless_session', user.id, { httpOnly: true, secure: true, sameSite: 'Strict', maxAge: 86400 });
+    const urlObj = new URL(c.req.url);
+    const isSecure = urlObj.protocol === 'https:';
+    setCookie(c, 'ruthless_session', user.id, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 2592000 });
     return ok(c, { user: { id: user.id, email: user.email, nickname: user.nickname } });
   });
   app.post('/api/auth/logout', (c) => {
@@ -68,6 +72,7 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
   });
   app.get('/api/board', async (c) => {
     const userId = c.get('userId');
+    if (!userId) return c.json({ success: false, error: 'Unauthorized' }, 401);
     const board = new UserNightmareEntity(c.env, userId);
     const state = await board.syncDeadlines();
     return ok(c, state);
@@ -110,6 +115,13 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
     const updated = await board.deleteTask(id);
     return ok(c, updated);
   });
+  app.use('/api/user*', async (c, next) => {
+    const userId = getCookie(c, 'ruthless_session');
+    if (!userId) return c.json({ success: false, error: 'Unauthorized' }, 401);
+    c.set('userId', userId);
+    await next();
+  });
+
   app.post('/api/user/onboard', async (c) => {
     const userId = c.get('userId');
     const { nickname } = await c.req.json();
