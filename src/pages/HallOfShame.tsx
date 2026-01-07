@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Skull, ChevronLeft, UserX, Gavel, ShieldAlert, Archive } from 'lucide-react';
@@ -7,11 +7,15 @@ import type { TaskBoardState } from '@shared/types';
 import { BrutalCard, BrutalButton, BrutalBadge } from '@/components/brutalist-ui';
 export function HallOfShame() {
   const navigate = useNavigate();
-  const { data: board } = useQuery<TaskBoardState>({
+  const { data: board, error } = useQuery<TaskBoardState>({
     queryKey: ['board'],
     queryFn: () => api<TaskBoardState>('/api/board'),
     retry: false,
   });
+
+  useEffect(() => {
+    if (error) navigate('/login');
+  }, [error, navigate]);
   const shameHistory = board?.shameHistory || [];
   const stolen = board?.stolenValor || [];
   const totalScore = (shameHistory.length * 10) + (stolen.length * 25);
