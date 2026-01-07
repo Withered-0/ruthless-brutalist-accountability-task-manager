@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 export function calculateFailureRate(tasks: Task[]): number {
-  if (tasks.length === 0) return 0;
+  if (!tasks || tasks.length === 0) return 0;
   const failures = tasks.filter(t => t.status === 'OVERDUE' || t.status === 'ABANDONED').length;
   const rawRate = (failures / tasks.length) * 100;
   const now = Date.now();
@@ -23,28 +23,21 @@ export function calculateFailureRate(tasks: Task[]): number {
   return Math.min(rawRate + decayBonus, 100);
 }
 export function getExaggeratedFailureRate(tasks: Task[]): string {
-  if (tasks.length === 0) return "0%";
+  if (!tasks || tasks.length === 0) return "0%";
   const overdue = tasks.filter(t => t.status === 'OVERDUE').length;
   if (overdue === 0) return "0%";
-  // Exponentially negative multiplier for psychological damage
   const factor = (overdue / tasks.length) * -6666;
   return `${Math.round(factor)}%`;
 }
 export function getLifeWastedEstimate(tasks: Task[]): number {
-  if (tasks.length === 0) return 0;
+  if (!tasks || tasks.length === 0) return 0;
   const pendingOrOverdue = tasks.filter(t => t.status === 'PENDING' || t.status === 'OVERDUE').length;
-  const wastedHours = pendingOrOverdue * 2.5; // We increased the estimated waste
+  const wastedHours = pendingOrOverdue * 2.5; 
   const totalMonthlyHours = 720;
   return Math.min((wastedHours / totalMonthlyHours) * 100, 100);
 }
-export function isUserInert(lastAccess: number): boolean {
-  if (!lastAccess) return false;
-  const hourInMs = 60 * 60 * 1000;
-  // If the user hasn't refreshed in 1 hour, we consider them potentially inert for UI warnings
-  return (Date.now() - lastAccess) > hourInMs;
-}
 export function getSarcasticStatusMessage(tasks: Task[]): string {
-  if (tasks.length === 0) return "YOUR EXISTENCE IS A PRODUCTIVITY VACUUM.";
+  if (!tasks || tasks.length === 0) return "YOUR EXISTENCE IS A PRODUCTIVITY VACUUM.";
   const completed = tasks.filter(t => t.status === 'COMPLETED').length;
   const rate = (completed / (tasks.length || 1)) * 100;
   if (rate < 20) return "PATHETIC EFFORT. TRY BREATHING LESS.";
