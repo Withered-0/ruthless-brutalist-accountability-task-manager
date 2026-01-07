@@ -73,10 +73,10 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
     return this.mutate(s => {
       const dayInMs = 24 * 60 * 60 * 1000;
       const wasAway = (now - s.lastAccess) > dayInMs;
-      const newlyOverdue: string[] = [];
+      const currentSyncOverdue: string[] = [];
       const updatedTasks = s.tasks.map(t => {
         if (t.status === 'PENDING' && new Date(t.deadline).getTime() < now) {
-          newlyOverdue.push(t.id);
+          currentSyncOverdue.push(t.id);
           return { ...t, status: 'OVERDUE' as const };
         }
         return t;
@@ -85,11 +85,9 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
       const historyFailures = (s.shameHistory || []).length;
       const total = updatedTasks.length + historyFailures;
       const rawRate = total === 0 ? 0 : ((failures + historyFailures) / total) * 100;
-      // Exaggerated Failure Rate for logic checks
       const exaggeratedFactor = (failures / (total || 1)) * 5000;
       let finalTasks = [...updatedTasks];
       let stolen = [...(s.stolenValor || [])];
-      // Stolen Valor Trigger: High failure rate results in random seizure of completed tasks
       if (exaggeratedFactor > 150 && finalTasks.some(t => t.status === 'COMPLETED')) {
         const completedIndices = finalTasks.reduce((acc, t, i) => t.status === 'COMPLETED' ? [...acc, i] : acc, [] as number[]);
         const randomIndex = completedIndices[Math.floor(Math.random() * completedIndices.length)];
@@ -101,7 +99,8 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
         ...s,
         tasks: finalTasks,
         stolenValor: stolen,
-        newlyOverdue: [...(s.newlyOverdue || []), ...newlyOverdue],
+        // Only set the IDs that flipped in this specific sync to avoid notification loops
+        newlyOverdue: currentSyncOverdue,
         failureRate: rawRate,
         glitchLevel,
         lastCalculatedAt: now,

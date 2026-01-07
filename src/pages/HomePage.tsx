@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Volume2, Radio, Clock, ShieldAlert, Edit3, Trash2, Skull, Lock } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import type { Task, TaskBoardState, TaskPriority } from '@shared/types';
-import { cn, getExaggeratedFailureRate, getLifeWastedEstimate, isUserInert } from '@/lib/utils';
+import { cn, getExaggeratedFailureRate, getLifeWastedEstimate } from '@/lib/utils';
 import { BrutalCard, BrutalButton, BrutalInput, BrutalBadge } from '@/components/brutalist-ui';
 import { Toaster, toast } from 'sonner';
 import { snark } from '@/lib/snark-engine';
@@ -22,6 +22,8 @@ export function HomePage() {
   const [taskForm, setTaskForm] = useState<Partial<Task>>({
     title: '', description: '', priority: 'MEDIUM', deadline: ''
   });
+  const notifiedFailures = useRef<Set<string>>(new Set());
+  const wasAwayNotified = useRef(false);
   const { data: board, error } = useQuery<TaskBoardState>({
     queryKey: ['board'],
     queryFn: () => api<TaskBoardState>('/api/board'),
@@ -38,14 +40,19 @@ export function HomePage() {
   }, [board, isNicknameModal]);
   useEffect(() => {
     if (board && isUnlocked) {
-      // 1. Inactivity Check
-      if (isUserInert(board.lastAccess)) {
+      // 1. Inactivity Check using server-calculated wasAway flag
+      if (board.wasAway && !wasAwayNotified.current) {
         toast.warning("LONG TIME NO SEE. YOUR BOARD HAS DECAYED.");
+        wasAwayNotified.current = true;
       }
-      // 2. Newly Overdue Alert
+      // 2. Newly Overdue Alert with tracking to prevent notification storms
       if (board.newlyOverdue && board.newlyOverdue.length > 0) {
-        snark.playSound('death_knell');
-        toast.error(`${board.newlyOverdue.length} TASKS EXPIRED WHILE YOU WERE SLACKING.`);
+        const unseenFailures = board.newlyOverdue.filter(id => !notifiedFailures.current.has(id));
+        if (unseenFailures.length > 0) {
+          snark.playSound('death_knell');
+          toast.error(`${unseenFailures.length} TASKS EXPIRED WHILE YOU WERE SLACKING.`);
+          unseenFailures.forEach(id => notifiedFailures.current.add(id));
+        }
       }
     }
   }, [board, isUnlocked]);
@@ -208,9 +215,13 @@ export function HomePage() {
       </Dialog>
       <Dialog open={isNicknameModal} onOpenChange={setIsNicknameModal}>
         <DialogContent className="bg-red-600 text-white border-[16px] border-white p-12 sm:max-w-[600px]">
-          <DialogHeader><DialogTitle className="text-6xl font-black uppercase tracking-tighter leading-none">IDENTIFY YOURSELF</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-6xl font-black uppercase tracking-tighter leading-none">IDENTIFY YOURSELF</DialogTitle>
+            <DialogDescription className="text-xl font-bold uppercase text-white/90 pt-4">
+              The system requires a nickname to mock you with surgical precision.
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-6 py-8">
-            <p className="text-xl font-bold uppercase">The system requires a nickname to mock you with surgical precision.</p>
             <BrutalInput value={nicknameInput} onChange={e => setNicknameInput(e.target.value)} placeholder="COWARD_69" className="text-3xl py-8 bg-white text-black border-4 border-black" />
           </div>
           <DialogFooter>
