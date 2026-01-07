@@ -23,13 +23,16 @@ export interface TaskBoardState {
   id: string;
   tasks: Task[];
   shameHistory: Task[]; // Permanent record of failures
-  stolenValor: Task[];
+  stolenValor: Task[];  // Tasks seized by the system
+  newlyOverdue: string[]; // IDs of tasks that flipped status in last sync
   failureRate: number;
-  glitchLevel: number; // 0-100 driving UI intensity
+  glitchLevel: number; 
   lastCalculatedAt: number;
+  lastAccess: number;    // Last time user fetched the board
   nickname?: string;
   lockoutUntil?: number;
-  isCheating?: boolean; // Flag if user tries to manipulate deadlines
+  isCheating?: boolean;
+  wasAway?: boolean;     // UI hint if user was gone > 24h
 }
 export interface AuthResponse {
   user: User;
