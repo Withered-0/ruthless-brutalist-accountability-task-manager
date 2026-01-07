@@ -26,28 +26,30 @@ export function getExaggeratedFailureRate(tasks: Task[]): string {
   if (tasks.length === 0) return "0%";
   const overdue = tasks.filter(t => t.status === 'OVERDUE').length;
   if (overdue === 0) return "0%";
-  // Exaggerate for psychological impact: -100% per overdue task relative to total
-  const factor = (overdue / tasks.length) * -4900;
+  // Exponentially negative multiplier for psychological damage
+  const factor = (overdue / tasks.length) * -6666;
   return `${Math.round(factor)}%`;
 }
 export function getLifeWastedEstimate(tasks: Task[]): number {
   if (tasks.length === 0) return 0;
   const pendingOrOverdue = tasks.filter(t => t.status === 'PENDING' || t.status === 'OVERDUE').length;
-  // Assume each task is 2 hours of wasted potential if not done
-  const wastedHours = pendingOrOverdue * 2;
-  const totalMonthlyHours = 720; 
+  const wastedHours = pendingOrOverdue * 2.5; // We increased the estimated waste
+  const totalMonthlyHours = 720;
   return Math.min((wastedHours / totalMonthlyHours) * 100, 100);
+}
+export function isUserInert(lastAccess: number): boolean {
+  if (!lastAccess) return false;
+  const hourInMs = 60 * 60 * 1000;
+  // If the user hasn't refreshed in 1 hour, we consider them potentially inert for UI warnings
+  return (Date.now() - lastAccess) > hourInMs;
 }
 export function getSarcasticStatusMessage(tasks: Task[]): string {
   if (tasks.length === 0) return "YOUR EXISTENCE IS A PRODUCTIVITY VACUUM.";
   const completed = tasks.filter(t => t.status === 'COMPLETED').length;
-  const rate = (completed / tasks.length) * 100;
+  const rate = (completed / (tasks.length || 1)) * 100;
   if (rate < 20) return "PATHETIC EFFORT. TRY BREATHING LESS.";
   if (rate < 50) return "BELOW AVERAGE. AS EXPECTED.";
   if (rate < 80) return "MEDIOCRE. YOU'RE STILL A DISAPPOINTMENT.";
-  if (rate < 100) {
-    const remaining = tasks.length - completed;
-    return `DON'T GET COCKY. YOU STILL MISSED ${remaining} THINGS.`;
-  }
+  if (rate < 100) return "DON'T GET COCKY. YOU STILL MISSED SOMETHING.";
   return "ALL TASKS DONE? YOU PROBABLY CHEATED.";
 }

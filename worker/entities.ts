@@ -20,9 +20,11 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
     tasks: [],
     shameHistory: [],
     stolenValor: [],
+    newlyOverdue: [],
     failureRate: 0,
     glitchLevel: 0,
     lastCalculatedAt: Date.now(),
+    lastAccess: Date.now(),
     nickname: "",
     lockoutUntil: 0,
     isCheating: false
@@ -40,12 +42,11 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
       const taskIndex = s.tasks.findIndex(t => t.id === taskId);
       if (taskIndex === -1) return s;
       const task = s.tasks[taskIndex];
-      // Boss Logic: Detecting Deadline manipulation
       if (updates.deadline && new Date(updates.deadline) > new Date(task.deadline)) {
-        isCheating = true; // User is extending a deadline
+        isCheating = true;
       }
       if (updates.status === 'ABANDONED') {
-        lockoutUntil = Date.now() + 30000; // 30s lockout
+        lockoutUntil = Date.now() + 30000;
       }
       const tasks = s.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
       return { ...s, tasks, lockoutUntil, isCheating };
@@ -55,12 +56,14 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
     return this.mutate(s => {
       const task = s.tasks.find(t => t.id === taskId);
       if (!task) return s;
-      // The Unforgettable Sin: Overdue/Abandoned tasks are never deleted, just moved to history
       const shouldLogToShame = task.status === 'OVERDUE' || task.status === 'ABANDONED';
       const shameHistory = shouldLogToShame ? [...(s.shameHistory || []), task] : (s.shameHistory || []);
       const tasks = s.tasks.filter(t => t.id !== taskId);
       return { ...s, tasks, shameHistory };
     });
+  }
+  async clearNewFailures(): Promise<TaskBoardState> {
+    return this.mutate(s => ({ ...s, newlyOverdue: [] }));
   }
   async setNickname(name: string): Promise<TaskBoardState> {
     return this.mutate(s => ({ ...s, nickname: name }));
@@ -68,37 +71,42 @@ export class UserNightmareEntity extends Entity<TaskBoardState> {
   async syncDeadlines(): Promise<TaskBoardState> {
     const now = Date.now();
     return this.mutate(s => {
-      // 1. Mark Overdue
+      const dayInMs = 24 * 60 * 60 * 1000;
+      const wasAway = (now - s.lastAccess) > dayInMs;
+      const newlyOverdue: string[] = [];
       const updatedTasks = s.tasks.map(t => {
         if (t.status === 'PENDING' && new Date(t.deadline).getTime() < now) {
+          newlyOverdue.push(t.id);
           return { ...t, status: 'OVERDUE' as const };
         }
         return t;
       });
-      // 2. Calculate Failure Rate
       const failures = updatedTasks.filter(t => t.status === 'OVERDUE' || t.status === 'ABANDONED').length;
       const historyFailures = (s.shameHistory || []).length;
       const total = updatedTasks.length + historyFailures;
       const rawRate = total === 0 ? 0 : ((failures + historyFailures) / total) * 100;
-      // 3. Stolen Valor Logic
+      // Exaggerated Failure Rate for logic checks
+      const exaggeratedFactor = (failures / (total || 1)) * 5000;
       let finalTasks = [...updatedTasks];
       let stolen = [...(s.stolenValor || [])];
-      if (rawRate > 75 && finalTasks.some(t => t.status === 'COMPLETED')) {
-        const completedIndex = finalTasks.findIndex(t => t.status === 'COMPLETED');
-        if (completedIndex !== -1) {
-          const stolenTask = finalTasks.splice(completedIndex, 1)[0];
-          stolen.push(stolenTask);
-        }
+      // Stolen Valor Trigger: High failure rate results in random seizure of completed tasks
+      if (exaggeratedFactor > 150 && finalTasks.some(t => t.status === 'COMPLETED')) {
+        const completedIndices = finalTasks.reduce((acc, t, i) => t.status === 'COMPLETED' ? [...acc, i] : acc, [] as number[]);
+        const randomIndex = completedIndices[Math.floor(Math.random() * completedIndices.length)];
+        const stolenTask = finalTasks.splice(randomIndex, 1)[0];
+        stolen.push(stolenTask);
       }
-      // 4. Glitch Level Calculation
-      const glitchLevel = Math.min(rawRate + (s.isCheating ? 20 : 0), 100);
+      const glitchLevel = Math.min(rawRate + (s.isCheating ? 20 : 0) + (wasAway ? 15 : 0), 100);
       return {
         ...s,
         tasks: finalTasks,
         stolenValor: stolen,
+        newlyOverdue: [...(s.newlyOverdue || []), ...newlyOverdue],
         failureRate: rawRate,
         glitchLevel,
-        lastCalculatedAt: now
+        lastCalculatedAt: now,
+        lastAccess: now,
+        wasAway
       };
     });
   }
