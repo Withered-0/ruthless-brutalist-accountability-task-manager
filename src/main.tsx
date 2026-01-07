@@ -14,6 +14,8 @@ import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
 import { HallOfShame } from '@/pages/HallOfShame'
 import { LoginPage } from '@/pages/LoginPage'
+import { Outlet } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
@@ -23,13 +25,18 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <HomePage />,
+    element: <AppLayout container><Outlet /></AppLayout>,
     errorElement: <RouteErrorBoundary />,
-  },
-  {
-    path: "/shame",
-    element: <HallOfShame />,
-    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: <HomePage />,
+      },
+      {
+        path: "shame",
+        element: <HallOfShame />,
+      },
+    ],
   },
 ]);
 createRoot(document.getElementById('root')!).render(
