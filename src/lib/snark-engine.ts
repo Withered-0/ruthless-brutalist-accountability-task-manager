@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 type SnarkCategory = 'task_added' | 'task_completed' | 'task_abandoned' | 'idle_shame' | 'welcome';
 const SNARK_LIBRARY: Record<SnarkCategory, string[]> = {
   welcome: [
@@ -26,15 +27,12 @@ const SNARK_LIBRARY: Record<SnarkCategory, string[]> = {
     "I can smell the procrastination from here, ${nickname}."
   ]
 };
-const SOUND_EFFECTS = {
-  chicken: 'https://assets.mixkit.co/active_storage/sfx/204/204-preview.mp3',
-  death_knell: 'https://assets.mixkit.co/active_storage/sfx/1118/1118-preview.mp3'
-};
 class SnarkEngine {
   private static instance: SnarkEngine;
   private voice: SpeechSynthesisVoice | null = null;
   private isUnlocked: boolean = false;
   private isMuted: boolean = false;
+  private audioCtx: AudioContext | null = null;
   private constructor() {
     if (typeof window !== 'undefined') {
       const loadVoices = () => {
@@ -51,29 +49,77 @@ class SnarkEngine {
     if (!SnarkEngine.instance) SnarkEngine.instance = new SnarkEngine();
     return SnarkEngine.instance;
   }
-  unlock() { this.isUnlocked = true; }
-  toggleMute() { this.isMuted = !this.isMuted; return this.isMuted; }
+  private initAudio() {
+    if (!this.audioCtx && typeof window !== 'undefined') {
+      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (this.audioCtx?.state === 'suspended') {
+      this.audioCtx.resume();
+    }
+  }
+  unlock() {
+    this.isUnlocked = true;
+    this.initAudio();
+  }
+  toggleMute() {
+    this.isMuted = !this.isMuted;
+    return this.isMuted;
+  }
   getMuteStatus() { return this.isMuted; }
-  playSound(type: keyof typeof SOUND_EFFECTS) {
-    if (!this.isUnlocked || this.isMuted || typeof window === 'undefined') return;
-    const audio = new Audio(SOUND_EFFECTS[type]);
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
+  playSound(type: 'death_knell' | 'chicken') {
+    if (!this.isUnlocked || this.isMuted || !this.audioCtx) return;
+    const now = this.audioCtx.currentTime;
+    const masterGain = this.audioCtx.createGain();
+    masterGain.connect(this.audioCtx.destination);
+    masterGain.gain.setValueAtTime(0.3, now);
+    if (type === 'death_knell') {
+      // Brutalist Square Wave Death Knell
+      const osc = this.audioCtx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 1.5);
+      const gain = this.audioCtx.createGain();
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 1.5);
+    } else if (type === 'chicken') {
+      // Mocking Sine Wave Chicken Bursts
+      for (let i = 0; i < 3; i++) {
+        const startTime = now + (i * 0.15);
+        const osc = this.audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800 + (Math.random() * 400), startTime);
+        osc.frequency.exponentialRampToValueAtTime(1200, startTime + 0.1);
+        const gain = this.audioCtx.createGain();
+        gain.gain.setValueAtTime(0.5, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(startTime);
+        osc.stop(startTime + 0.1);
+      }
+    }
   }
   speak(category: SnarkCategory, nickname?: string) {
     if (!this.isUnlocked || this.isMuted || typeof window === 'undefined') return;
     const phrases = SNARK_LIBRARY[category];
     let phrase = phrases[Math.floor(Math.random() * phrases.length)];
-    if (nickname) {
-      phrase = phrase.replace(/\$\{nickname\}/g, nickname);
-    } else {
-      phrase = phrase.replace(/\$\{nickname\}/g, "You");
-    }
+    const name = nickname || "Pathetic User";
+    phrase = phrase.replace(/\$\{nickname\}/g, name);
+    // Visible Abuse
+    toast(phrase, {
+      icon: '🖕',
+      duration: 5000,
+    });
+    // Audible Abuse
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(phrase);
     if (this.voice) utterance.voice = this.voice;
-    utterance.pitch = 0.8;
-    utterance.rate = 1.0;
+    utterance.pitch = 0.7; // Robotic and deep
+    utterance.rate = 0.9;
     window.speechSynthesis.speak(utterance);
     return phrase;
   }

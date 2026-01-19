@@ -22,32 +22,60 @@
     border-radius: 0 !important;
   }
   body {
-    @apply bg-background text-foreground font-mono;
+    @apply bg-background text-foreground font-mono antialiased;
     background-color: #000000;
     color: #ffffff;
+    overflow-x: hidden;
   }
 }
 @layer utilities {
   .glitch-text {
-    text-shadow: 2px 0 #ff0000, -2px 0 #00ffff;
+    text-shadow: 3px 0 #ff0000, -3px 0 #00ffff;
   }
   .border-brutal {
-    border: 3px solid currentColor;
-    box-shadow: 4px 4px 0px 0px currentColor;
+    border: 4px solid currentColor;
+    box-shadow: 6px 6px 0px 0px currentColor;
   }
   .brutal-btn-active {
-    transform: translate(2px, 2px);
+    transform: translate(3px, 3px);
     box-shadow: 0px 0px 0px 0px currentColor;
   }
 }
 @keyframes glitch {
-  0% { clip-path: inset(10% 0 30% 0); transform: translate(-2px, 2px); }
-  20% { clip-path: inset(40% 0 10% 0); transform: translate(2px, -2px); }
-  40% { clip-path: inset(0% 0 60% 0); transform: translate(-2px, 0); }
-  60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, 2px); }
-  80% { clip-path: inset(20% 0 45% 0); transform: translate(-2px, -2px); }
-  100% { clip-path: inset(10% 0 30% 0); transform: translate(2px, 0); }
+  0% { clip-path: inset(10% 0 30% 0); transform: translate(-4px, 4px); filter: hue-rotate(90deg); }
+  10% { clip-path: inset(40% 0 10% 0); transform: translate(4px, -4px); }
+  25% { clip-path: inset(0% 0 60% 0); transform: translate(-4px, 0); filter: brightness(1.5); }
+  45% { clip-path: inset(80% 0 5% 0); transform: translate(4px, 4px); }
+  60% { clip-path: inset(20% 0 45% 0); transform: translate(-4px, -4px); filter: saturate(200%); }
+  85% { clip-path: inset(5% 0 80% 0); transform: translate(4px, 0); }
+  100% { clip-path: inset(10% 0 30% 0); transform: translate(4px, 0); }
+}
+@keyframes skull-collapse {
+  0%, 100% { transform: scaleY(1); }
+  10%, 90% { transform: scaleY(1.1) scaleX(0.9); }
+  50% { transform: scaleY(0.1) scaleX(1.8); filter: invert(1); }
 }
 .animate-glitch {
-  animation: glitch 0.3s infinite linear alternate-reverse;
+  animation: glitch 0.2s infinite linear alternate-reverse;
+}
+.animate-skull-collapse {
+  animation: skull-collapse 0.5s infinite steps(2);
+}
+button, a {
+  @apply transition-none !important;
+}
+/* Custom scrollbar for brutalist look */
+::-webkit-scrollbar {
+  width: 16px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+  border-left: 4px solid #ffffff;
+}
+::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border: 4px solid #000000;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ff0000;
 }

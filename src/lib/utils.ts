@@ -23,26 +23,31 @@ export function calculateFailureRate(tasks: Task[]): number {
   return Math.min(rawRate + decayBonus, 100);
 }
 export function getExaggeratedFailureRate(tasks: Task[]): string {
-  if (!tasks || tasks.length === 0) return "0%";
+  if (!tasks || tasks.length === 0) return "0.0%";
   const overdue = tasks.filter(t => t.status === 'OVERDUE').length;
-  if (overdue === 0) return "0%";
-  const factor = (overdue / tasks.length) * -6666;
-  return `${Math.round(factor)}%`;
+  const abandoned = tasks.filter(t => t.status === 'ABANDONED').length;
+  if (overdue === 0 && abandoned === 0) return "0.0%";
+  // Create a terrifyingly large number for the UI
+  const factor = ((overdue + abandoned) / tasks.length) * -666.6;
+  return `${factor.toFixed(1)}%`;
 }
 export function getLifeWastedEstimate(tasks: Task[]): number {
   if (!tasks || tasks.length === 0) return 0;
   const pendingOrOverdue = tasks.filter(t => t.status === 'PENDING' || t.status === 'OVERDUE').length;
-  const wastedHours = pendingOrOverdue * 2.5; 
+  // Estimate: each pending task represents 4 hours of potential stress/procrastination
+  const wastedHours = pendingOrOverdue * 4;
   const totalMonthlyHours = 720;
   return Math.min((wastedHours / totalMonthlyHours) * 100, 100);
 }
-export function getSarcasticStatusMessage(tasks: Task[]): string {
-  if (!tasks || tasks.length === 0) return "YOUR EXISTENCE IS A PRODUCTIVITY VACUUM.";
+export function getSarcasticStatusMessage(tasks: Task[], nickname?: string): string {
+  const name = nickname?.toUpperCase() || "PATHETIC_USER";
+  if (!tasks || tasks.length === 0) return `HEY ${name}, YOUR EXISTENCE IS A PRODUCTIVITY VACUUM.`;
   const completed = tasks.filter(t => t.status === 'COMPLETED').length;
   const rate = (completed / (tasks.length || 1)) * 100;
-  if (rate < 20) return "PATHETIC EFFORT. TRY BREATHING LESS.";
-  if (rate < 50) return "BELOW AVERAGE. AS EXPECTED.";
-  if (rate < 80) return "MEDIOCRE. YOU'RE STILL A DISAPPOINTMENT.";
-  if (rate < 100) return "DON'T GET COCKY. YOU STILL MISSED SOMETHING.";
-  return "ALL TASKS DONE? YOU PROBABLY CHEATED.";
+  if (rate < 10) return `${name}: TOTAL DISASTER. DELETE YOURSELF.`;
+  if (rate < 30) return `${name}: BELOW AVERAGE. AS EXPECTED.`;
+  if (rate < 50) return `${name}: MEDIOCRE EFFORT. TRY BREATHING LESS.`;
+  if (rate < 80) return `${name}: DON'T GET COCKY. YOU'RE STILL A DISAPPOINTMENT.`;
+  if (rate < 100) return `${name}: ALMOST THERE. BUT ALMOST IS FOR LOSERS.`;
+  return `${name}: ALL TASKS DONE? YOU DEFINITELY CHEATED.`;
 }
