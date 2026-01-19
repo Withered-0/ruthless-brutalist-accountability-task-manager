@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Skull, ChevronLeft, Gavel, Archive, ShieldX } from 'lucide-react';
+import { Skull, ChevronLeft, Gavel, Archive, ShieldX, Zap } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import type { TaskBoardState, Task } from '@shared/types';
 import { BrutalCard, BrutalButton, BrutalBadge } from '@/components/brutalist-ui';
@@ -26,7 +26,7 @@ export function HallOfShame() {
   };
   return (
     <div className="min-h-screen bg-black text-white font-mono bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
-      <div className="max-w-7xl mx-auto px-4 py-8 md:py-12 space-y-12">
+      <div className="space-y-12">
         <header className="border-8 border-red-600 p-10 bg-black text-white shadow-[12px_12px_0px_0px_rgba(255,0,0,1)] flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
           <div className="absolute inset-0 bg-red-600/5 animate-pulse pointer-events-none" />
           <div className="z-10">

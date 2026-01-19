@@ -103,9 +103,9 @@ export function userRoutes(app: Hono<{ Bindings: Env; Variables: Variables }>) {
     if (state.lockoutUntil && state.lockoutUntil > Date.now()) {
       return bad(c, 'Locked out for cowardice.');
     }
-    const updated = await board.updateTask(id, updates);
+    await board.updateTask(id, updates);
     // When a task is updated or viewed, we clear the 'newlyOverdue' queue
-    await board.clearNewFailures();
+    const updated = await board.clearNewFailures();
     return ok(c, updated);
   });
   app.delete('/api/board/task/:id', async (c) => {

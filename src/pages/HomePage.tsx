@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-import { Plus, Volume2, Radio, Clock, ShieldAlert, Trash2, Skull, Lock, Zap } from 'lucide-react';
+import { Plus, Radio, Clock, ShieldAlert, Trash2, Skull, Lock, Zap } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import type { Task, TaskBoardState, TaskPriority } from '@shared/types';
 import { cn, getExaggeratedFailureRate, getLifeWastedEstimate } from '@/lib/utils';
@@ -27,7 +27,7 @@ export function HomePage() {
     queryKey: ['board'],
     queryFn: () => api<TaskBoardState>('/api/board'),
     retry: false,
-    refetchInterval: 30000, // Background sync every 30s to trigger server-side syncDeadlines
+    refetchInterval: 30000,
   });
   useEffect(() => {
     if (error) navigate('/login');
@@ -100,8 +100,8 @@ export function HomePage() {
       {!isUnlocked && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-6 text-white overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/20 via-black to-black opacity-50" />
-          <BrutalButton 
-            className="text-4xl p-12 bg-red-600 text-white border-white animate-pulse shadow-[16px_16px_0px_0px_rgba(255,255,255,1)] z-10" 
+          <BrutalButton
+            className="text-4xl p-12 bg-red-600 text-white border-white animate-pulse shadow-[16px_16px_0px_0px_rgba(255,255,255,1)] z-10"
             onClick={() => { snark.unlock(); setIsUnlocked(true); snark.speak('welcome', board.nickname); }}
           >
             <Skull className="inline mr-4 h-12 w-12" /> ENTER THE NIGHTMARE
@@ -118,7 +118,7 @@ export function HomePage() {
           </p>
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-4 py-8 md:py-12 space-y-12">
+      <div className="space-y-12">
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 border-b-8 border-white pb-8">
           <div className="flex items-center gap-6">
             <div className={cn("h-24 w-24 bg-red-600 flex items-center justify-center border-4 border-white transition-transform duration-100", isSkullCollapsing && "animate-skull-collapse")}>
@@ -168,8 +168,8 @@ export function HomePage() {
           <div className="grid grid-cols-1 gap-6">
             {board.tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'ABANDONED').length > 0 ? (
               board.tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'ABANDONED').map(task => (
-                <BrutalCard 
-                  key={task.id} 
+                <BrutalCard
+                  key={task.id}
                   className={cn(
                     "bg-zinc-950 border-white flex flex-col md:flex-row justify-between items-center p-8 transition-all relative group overflow-hidden",
                     task.status === 'OVERDUE' && "border-red-600 border-8 bg-red-950/20 shadow-brutal-red",
