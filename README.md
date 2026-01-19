@@ -1,6 +1,6 @@
 # Ruthless Task Manager
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Withered-0/ruthless-brutalist-accountability-task-manager)
 
 A high-performance, full-stack task management application built on Cloudflare Workers with Durable Objects for stateful entities. Features real-time collaboration, indexed entity lists, and a modern React frontend with shadcn/ui components.
 
@@ -114,7 +114,7 @@ Frontend uses `src/lib/api-client.ts` for type-safe fetches.
 
 3. Configure custom domain in Cloudflare Dashboard > Workers > Your Worker > Triggers.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Withered-0/ruthless-brutalist-accountability-task-manager)
 
 **Production Tips**:
 - Enable **Cloudflare Observability** (already configured).
